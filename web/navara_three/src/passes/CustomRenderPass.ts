@@ -93,6 +93,10 @@ export class CustomRenderPass extends RenderPass {
   // stamped onto every material rendered into the G-buffer.
   private gbufferDefines: Readonly<Record<string, number>>;
   private gbufferDefinesStamped = new WeakSet<Material>();
+  // Materials met in a G-buffer scene during the current traversal. Lets the
+  // forward traversal tell a material that left the G-buffer scenes (its
+  // defines must go) from one shared with them (they must stay).
+  private readonly gbufferVisited = new Set<Material>();
   // Separate from the G-buffer set: the two cover different scene sets, and a
   // shared one would skip the G-buffer defines for a material first seen in
   // the opaque scene that later moves to the MRT pass.
@@ -251,7 +255,15 @@ export class CustomRenderPass extends RenderPass {
   // either. An unstamped material declares no G-buffer outputs and renders
   // without normal / effect-id / emissive data. The per-material work is
   // WeakSet-gated, so the per-frame cost is the traversal alone.
+  //
+  // A mesh can also leave the G-buffer scenes (its last selective effect
+  // removed, see MeshDescWithSelectiveEffect.getPassKey); its material must
+  // then stop declaring outputs the forward target has no attachments for.
+  // G-buffer scenes are traversed first so a material shared by both sets
+  // keeps its outputs: the G-buffer needs them, the forward pass discards
+  // them.
   private stampGBufferDefines(): void {
+    this.gbufferVisited.clear();
     for (const scene of this.gbufferScenes) {
       scene.traverse((object) => {
         this.forEachMaterial(object, (m) => this.stampGBufferDefine(m));
@@ -259,9 +271,10 @@ export class CustomRenderPass extends RenderPass {
     }
     for (const scene of this.forwardScenes) {
       scene.traverse((object) => {
-        this.forEachMaterial(object, (m) => this.stampLitDefine(m));
+        this.forEachMaterial(object, (m) => this.stampForwardDefines(m));
       });
     }
+    this.gbufferVisited.clear();
     // Drape shading is opted into here rather than per-desc, so a mesh moved
     // into the draped scene picks it up wherever it came from.
     this._scenes.draped.traverse((object) => {
@@ -285,6 +298,7 @@ export class CustomRenderPass extends RenderPass {
   }
 
   private stampGBufferDefine(material: Material): void {
+    this.gbufferVisited.add(material);
     material.defines ??= {};
     let changed = false;
 
@@ -314,6 +328,38 @@ export class CustomRenderPass extends RenderPass {
     }
 
     this.stampLitDefine(material);
+  }
+
+  private stampForwardDefines(material: Material): void {
+    if (
+      this.gbufferDefinesStamped.has(material) &&
+      !this.gbufferVisited.has(material)
+    ) {
+      this.clearGBufferDefines(material);
+    }
+    this.stampLitDefine(material);
+  }
+
+  private clearGBufferDefines(material: Material): void {
+    this.gbufferDefinesStamped.delete(material);
+    const defines = material.defines;
+    if (!defines) return;
+    let changed = false;
+    for (const name of GBUFFER_DEFINE_NAMES) {
+      if (name in defines) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete defines[name];
+        changed = true;
+      }
+    }
+    if (NVR_BLENDED_DEFINE in defines) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete defines[NVR_BLENDED_DEFINE];
+      changed = true;
+    }
+    if (changed) {
+      material.needsUpdate = true;
+    }
   }
 
   /** Per-material `lit` (NVR_LIT / NVR_UNLIT) wins over this in the shader. */
