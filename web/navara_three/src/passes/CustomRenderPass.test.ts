@@ -92,6 +92,34 @@ describe("stampGBufferDefines", () => {
     expect(material.defines?.[USE_GBUFFER_SHADOW_DEFINE]).toBe(1);
   });
 
+  it("stamps a material added inside a scene-resident group", () => {
+    const scenes = createScenes();
+    const group = new Group();
+    scenes.mrt.add(group);
+    const pass = createPass(scenes, true);
+    pass["stampGBufferDefines"]();
+
+    const added = new MeshStandardMaterial();
+    group.add(new Mesh(undefined, added));
+    pass["stampGBufferDefines"]();
+
+    expect(added.defines?.[USE_GBUFFER_SHADOW_DEFINE]).toBe(1);
+  });
+
+  it("stamps a material swapped in place on a mesh already in the scene", () => {
+    const scenes = createScenes();
+    const mesh = new Mesh(undefined, new MeshStandardMaterial());
+    scenes.mrt.add(mesh);
+    const pass = createPass(scenes, true);
+    pass["stampGBufferDefines"]();
+
+    const replaced = new MeshStandardMaterial();
+    mesh.material = replaced;
+    pass["stampGBufferDefines"]();
+
+    expect(replaced.defines?.[USE_GBUFFER_SHADOW_DEFINE]).toBe(1);
+  });
+
   it("restamps every material after setLit", () => {
     const scenes = createScenes();
     const opaqueMaterial = addMesh(scenes.opaque);
