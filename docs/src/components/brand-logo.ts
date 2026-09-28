@@ -7,7 +7,7 @@
 // (measured with getBBox on the paths and rounded outward; re-measure if the
 // files are ever re-delivered). The black variant carries no fill attributes,
 // so `fill: currentColor` lets CSS hand it the ink of whatever surface it sits
-// on. The examples gallery mirrors this in its own helpers/logo.ts.
+// on.
 import horizontalRaw from "../../public/logo/svg/black/black_Navara_Horizontal_logo.svg?raw";
 import verticalRaw from "../../public/logo/svg/black/black_Navara_Vertical_logo.svg?raw";
 

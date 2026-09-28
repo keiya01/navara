@@ -1,5 +1,4 @@
 import { withBase } from "../helpers/base";
-import { logoHorizontalSvg } from "../helpers/logo";
 import { DOCS_URL, siteUrl } from "../pages/examples/sections";
 import type { Lang } from "../pages/examples/sections";
 
@@ -28,11 +27,18 @@ export const SiteHeader = ({ lang, setLang, langLabel }: SiteHeaderProps) => {
           the right, with the LP's 48/28/20px gutters — no centered
           max-width container. */}
       <div className="flex items-center justify-between px-12 py-5 max-[960px]:px-7 max-[960px]:py-[18px] max-[640px]:px-5 max-[640px]:py-3.5">
-        <a
-          href={siteUrl(lang)}
-          className="block h-6 text-foreground max-[640px]:h-[21px] [&>svg]:block [&>svg]:h-full [&>svg]:w-auto [&_path]:fill-current"
-          dangerouslySetInnerHTML={{ __html: logoHorizontalSvg }}
-        />
+        <a href={siteUrl(lang)} className="block">
+          {/* The delivered white export, used as shipped. Its viewBox reserves
+              the brand's clear space — a uniform half of the mark's height on
+              every side — so the image is drawn at twice the 24/21px mark
+              height and the surplus is pulled back with a matching negative
+              margin, leaving the mark itself flush with the header gutter. */}
+          <img
+            src={withBase("/logo/svg/white/white_Navara_Horizontal_logo.svg")}
+            alt="Navara"
+            className="-m-3 block h-12 w-auto max-w-none max-[640px]:-m-[10.5px] max-[640px]:h-[42px]"
+          />
+        </a>
         <nav className="flex items-center gap-7 text-sm font-medium max-[640px]:gap-[18px]">
           <a
             className="text-foreground no-underline hover:text-primary max-[640px]:hidden"
