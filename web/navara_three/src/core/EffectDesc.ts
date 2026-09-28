@@ -329,10 +329,11 @@ export abstract class EffectDesc<
   }
 
   onDestroy(): void {
-    // Remove from orchestrator using the instance ID
-    this.ctx.removePass(this.instanceId);
+    if (this.ctx.getPass(this.instanceId)) {
+      this.ctx.removePass(this.instanceId);
+    }
 
-    this._instance = undefined;
+    super.onDestroy();
   }
 
   /**
