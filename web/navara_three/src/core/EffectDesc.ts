@@ -265,6 +265,15 @@ export abstract class EffectDesc<
     return this.getConstructor().insertBefore;
   }
 
+  /**
+   * The G-buffer attachments this instance currently needs. Defaults to the
+   * {@link requiredBuffers} static. An override whose result changes after
+   * creation must emit `gbufferRequirementsChanged` on the context.
+   */
+  getRequiredBuffers(): readonly GBufferName[] {
+    return this.getConstructor().requiredBuffers ?? [];
+  }
+
   onCreate() {
     this._instance = this.createPass();
 
