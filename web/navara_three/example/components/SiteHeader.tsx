@@ -1,11 +1,12 @@
 import { withBase } from "../helpers/base";
-import { DOCS_URL } from "../pages/examples/sections";
+import { logoHorizontalSvg } from "../helpers/logo";
+import { DOCS_URL, siteUrl } from "../pages/examples/sections";
 import type { Lang } from "../pages/examples/sections";
 
 import { LangSelect } from "@/components/LangSelect";
 
 /** GitHub link — same target as the landing page header. */
-const GITHUB_URL = "https://github.com/eukarya-inc/navara";
+export const GITHUB_URL = "https://github.com/eukarya-inc/navara";
 
 type SiteHeaderProps = {
   lang: Lang;
@@ -16,9 +17,9 @@ type SiteHeaderProps = {
 
 /**
  * The Navara site header, mirroring the landing page / docs header
- * (docs/src/components/LpHeader.astro): brand logo on the left, Docs /
- * GitHub / language picker on the right, on the navy band with the same
- * frosted backdrop as the LP's scrolled state.
+ * (docs/src/components/LpHeader.astro): brand logo (linking to the landing
+ * page) on the left, Docs / GitHub / language picker on the right, on the
+ * navy band with the same frosted backdrop as the LP's scrolled state.
  */
 export const SiteHeader = ({ lang, setLang, langLabel }: SiteHeaderProps) => {
   return (
@@ -27,13 +28,11 @@ export const SiteHeader = ({ lang, setLang, langLabel }: SiteHeaderProps) => {
           the right, with the LP's 48/28/20px gutters — no centered
           max-width container. */}
       <div className="flex items-center justify-between px-12 py-5 max-[960px]:px-7 max-[960px]:py-[18px] max-[640px]:px-5 max-[640px]:py-3.5">
-        <a href={withBase("/")} className="block">
-          <img
-            src={withBase("logo/white/white_Navara_Horizontal_logo_260819.svg")}
-            alt="Navara"
-            className="block h-6 w-auto max-[640px]:h-[21px]"
-          />
-        </a>
+        <a
+          href={siteUrl(lang)}
+          className="block h-6 text-foreground max-[640px]:h-[21px] [&>svg]:block [&>svg]:h-full [&>svg]:w-auto [&_path]:fill-current"
+          dangerouslySetInnerHTML={{ __html: logoHorizontalSvg }}
+        />
         <nav className="flex items-center gap-7 text-sm font-medium max-[640px]:gap-[18px]">
           <a
             className="text-foreground no-underline hover:text-primary max-[640px]:hidden"
