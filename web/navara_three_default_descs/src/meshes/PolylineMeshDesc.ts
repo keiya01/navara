@@ -171,9 +171,6 @@ export class PolylineMeshDesc extends MeshDescWithSelectiveEffect<
     this.bakedTransform = transform;
     this.ground.watch(isClampedToGround(style) ? built.extent : undefined);
     const material = new ShaderMaterial();
-    // The unclamped volume writes non-logarithmic depth, so it cannot be
-    // tested against the globe.
-    material.depthTest = isClampedToGround(style);
     material.lights = true;
 
     const mesh = new FeatureMesh<ShaderMaterial, PolylineMeshEventMap>(
@@ -424,7 +421,6 @@ export class PolylineMeshDesc extends MeshDescWithSelectiveEffect<
         },
       });
 
-      this._instance.material.depthTest = clamped;
       this._instance.castShadow = castsShadow(style);
       this._instance.receiveShadow = style.receiveShadow ?? false;
       if (patch.effectIds !== undefined) {

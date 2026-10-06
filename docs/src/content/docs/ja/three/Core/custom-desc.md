@@ -256,7 +256,7 @@ view.addMesh<GlowSphereDesc>({
 
 エフェクト ID・エミッシブ・シャドウ・globeNormal のバッファはオプションです。アクティブなエフェクトが `static requiredBuffers` で宣言している（例: `["selectiveEffect", "emissive"]` / `["shadow"]` / `["globeNormal"]`）か、メッシュが要求している（[G-Buffer の要求](#g-buffer-の要求)を参照）間だけ存在し、それ以外ではアクセサは `undefined` を返します。
 
-必要なバッファが自身の設定に依存するエフェクトは、代わりに `getRequiredBuffers()` をオーバーライドします。オーバーライドは static を完全に置き換えるので、どちらか一方だけを宣言してください。`onCreate()` より前に読まれるためコンストラクタの config から結果を導き、`update()` で結果が変わるときは `ctx` に `gbufferRequirementsChanged` を emit します。view はバッファを再導出します。新しいアタッチメントがデバイスの `MAX_DRAW_BUFFERS` を超える場合は emit が throw するので、そのエラーを伝播させる前に以前の状態へ戻してください。
+必要なバッファが自身の設定に依存するエフェクトは、代わりに `getRequiredBuffers()` をオーバーライドします。オーバーライドは static を完全に置き換えるので、どちらか一方だけを宣言してください。`onCreate()` より前に読まれるためコンストラクタの config から結果を導き、`update()` で結果が変わるときは `ctx` に `gbufferRequirementsChanged` を emit します。view はバッファを再導出します。新しいアタッチメントがデバイスの `MAX_DRAW_BUFFERS` を超える場合、view はエラーをログに出し、以前のバッファ構成を保ちます。`addEffect()` と `addMesh()` の時点で超える場合は throw します。
 
 ```typescript
 import { type GBufferName } from "@navaramap/three";
@@ -285,7 +285,7 @@ export class MyEffectDesc extends EffectDesc<MyEffectConfig, MyEffectUpdate, MyP
 }
 ```
 
-`globeNormal` だけは性質が異なり、G-buffer のアタッチメントではなく**地形法線の画面座標コピー**です。そのためアタッチメント枠を消費せず、デバイスの `MAX_DRAW_BUFFERS` にも数えられません。未宣言の場合はコピー先が 1x1 のままで、`ctx.getGlobeNormalTexture()` が返すテクスチャは意味のあるサンプリングができません。これらを読み取るカスタムエフェクトやメッシュは、ビューにバッファを確保させるため宣言してください。なお、確保されるバッファ構成の変更はアタッチメントの再確保とシェーダーの再コンパイルを伴うため、エフェクトは一度追加したら削除・再追加を繰り返さず、`update()` で調整してください。また構成変更でアタッチメントは再構築されるため、これらのテクスチャはパス生成時にキャッシュせず、毎フレーム（`update()` やパスの `render()` で）取得してください。
+`globeNormal` だけは性質が異なり、G-buffer のアタッチメントではなく**地形法線の画面座標コピー**です。そのため自身はアタッチメント枠を消費しません。ただし法線アタッチメントからコピーするので、要求すると `normal` も確保されます。未宣言の場合はコピー先が 1x1 のままで、`ctx.getGlobeNormalTexture()` が返すテクスチャは意味のあるサンプリングができません。これらを読み取るカスタムエフェクトやメッシュは、ビューにバッファを確保させるため宣言してください。なお、確保されるバッファ構成の変更はアタッチメントの再確保とシェーダーの再コンパイルを伴うため、エフェクトは一度追加したら削除・再追加を繰り返さず、`update()` で調整してください。また構成変更でアタッチメントは再構築されるため、これらのテクスチャはパス生成時にキャッシュせず、毎フレーム（`update()` やパスの `render()` で）取得してください。
 
 サンプリング時に注意すべきエンコーディング:
 

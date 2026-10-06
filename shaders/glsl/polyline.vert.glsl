@@ -27,6 +27,7 @@ in vec4 right_normal_and_texture_coordinate_normalization_y;
 #include <common>
 #include <color_pars_vertex>
 #include <shadowmap_pars_vertex>
+#include <logdepthbuf_pars_vertex>
 #include chunks/batch_texture_pars_vertex;
 
 uniform vec3 minMaxHeightAndWidth;
@@ -218,6 +219,7 @@ void main() {
 
     positionEC.xyz += lineWidth * normalEC;
     gl_Position = projectionMatrix * positionEC;
+    #include <logdepthbuf_vertex>
     vViewPosition = -positionEC.xyz;
 
     // Alias for three's chunk convention: the CSM view-space shadow patch

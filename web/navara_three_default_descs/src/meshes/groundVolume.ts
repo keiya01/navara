@@ -4,7 +4,8 @@ import type { GeographicExtent, HeightRange } from "@navaramap/three";
 /**
  * Keeps the volume heights of one extent current: computed by `volume` from
  * {@link ThreeView.sampleTerrainHeightRange} when the extent is set, then
- * from the engine's observer, which calls `onChange`.
+ * from the engine's observer. Calls `onChange` whenever they are recomputed,
+ * including for a new extent.
  */
 export class GroundVolumeWatch {
   /** `[min, max]`, or `undefined` while no extent is watched. */
@@ -41,6 +42,8 @@ export class GroundVolumeWatch {
       this.view.sampleTerrainHeightRange(extent) ?? { min: 0, max: 0 },
       extent,
     );
+    // The observer's first event usually repeats this range and is skipped.
+    this.onChange();
     this.unobserve = this.view.observeTerrainHeightRange(extent, (range) => {
       if (this.range?.min === range.min && this.range.max === range.max) {
         return;

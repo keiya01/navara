@@ -187,9 +187,12 @@ event, then pushes the result to `CustomRenderPass.setBuffers()`. That
 rebuilds the render target **as a fresh object** (reconfiguring a live target
 in place leaves the renderer's cached GL state sampling a texture the
 framebuffer no longer writes) while keeping the color/normal/depth `Texture`
-identities, which effects like SSR capture at creation. Every derivation
-asserts the device's `gl.MAX_DRAW_BUFFERS`, so exceeding it throws from
-`addEffect` or from `update()` instead of producing an incomplete framebuffer.
+identities, which effects like SSR capture at creation. `addEffect` and
+`addMesh` throw for a descriptor whose buffers would exceed the device's
+`gl.MAX_DRAW_BUFFERS`. A requirement that grows later (an `update()`) is
+logged with `console.error` and the previous configuration is kept, rather
+than producing an incomplete framebuffer; the next re-derivation that fits
+applies.
 
 A configuration change reallocates attachments and recompiles shaders — add
 effects once and tune them via `update()`, don't add/remove per frame.

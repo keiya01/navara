@@ -2397,15 +2397,19 @@ export default class ThreeView<
       }
     }
     const buffers = unionGBufferRequirements(requirements);
-    // Runtime requirement changes bypass `addEffect`'s check; exceeding the
-    // limit at the GL level gives an incomplete framebuffer, not an error.
+    // `addEffect`/`addMesh` reject an over-limit descriptor up front. A
+    // requirement that grows after creation is reported instead and the
+    // previous configuration kept, since the GL level would give an
+    // incomplete framebuffer. A later re-derivation that fits applies.
     const attachmentCount = this._countGBufferAttachments(buffers);
     const maxDrawBuffers = this._maxDrawBuffers();
     if (attachmentCount > maxDrawBuffers) {
-      throw new Error(
+      console.error(
         `The required G-buffers demand ${attachmentCount} MRT attachments, ` +
-          `exceeding this device's MAX_DRAW_BUFFERS (${maxDrawBuffers}).`,
+          `exceeding this device's MAX_DRAW_BUFFERS (${maxDrawBuffers}). ` +
+          "Keeping the previous G-buffers.",
       );
+      return;
     }
     this._buffers = buffers;
     this.viewContext._setGBufferOptions(this._buffers);

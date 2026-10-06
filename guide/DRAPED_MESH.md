@@ -169,7 +169,7 @@ A descriptor that changes it in `onUpdateConfig()` must, before calling `super.o
 1. Update `drapedEnable` on the DrapedMesh instance
 2. Replace the material with a new one, re-applying everything set up on the old one (shadow material, selective-effect uniforms, picking hooks)
 
-The base class then moves the mesh to the new scene and re-derives the G-buffer configuration. `PolygonMeshDesc` does this for `clampToGround`.
+The base class then moves the mesh to the new scene and re-derives the G-buffer configuration. When the `globeNormal` copy would add a normal attachment past the device's `MAX_DRAW_BUFFERS`, the view logs an error and keeps the previous buffers, so the drape is shaded with a stale terrain normal. `PolygonMeshDesc` does this for `clampToGround`.
 
 ### Constraints
 

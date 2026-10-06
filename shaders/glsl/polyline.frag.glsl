@@ -9,6 +9,7 @@
 #include <lights_pars_begin>
 #include <lights_lambert_pars_fragment>
 #include <shadowmap_pars_fragment>
+#include <logdepthbuf_pars_fragment>
 
 uniform vec3 color;
 uniform float uOpacity;
@@ -23,9 +24,6 @@ in vec3 vNormal;
 
 #ifdef NVR_GROUND_POLYLINE
     flat in vec4 v_rightPlaneEC;
-    #if defined(USE_LOGARITHMIC_DEPTH_BUFFER)
-        uniform float logDepthBufFC;
-    #endif
     #include chunks/globe_depth_pars_fragment;
     #include chunks/ground_shadow_coord_pars_fragment;
 
@@ -105,6 +103,9 @@ void main() {
         || nvr_planeDistance(v_endPlaneNormalEc, v_endPlaneOffsetEc, positionEc) < 0.0) {
         discard;
     }
+    // The same depth as the rest of the scene, so the line can be
+    // depth-tested against it.
+    #include <logdepthbuf_fragment>
 #endif
 
     vec4 diffuseColor = vec4(color, uOpacity);

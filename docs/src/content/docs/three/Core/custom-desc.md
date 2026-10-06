@@ -260,7 +260,7 @@ To read these buffers from a custom effect, use the [Buffer / Texture Access](#b
 
 The effectIds, emissive, shadow and globeNormal buffers are optional: they exist only while an active effect declares them in its `static requiredBuffers` (e.g. `["selectiveEffect", "emissive"]`, `["shadow"]` or `["globeNormal"]`) or a mesh requests them (see [Requesting G-Buffers](#requesting-g-buffers)), and the accessors return `undefined` otherwise.
 
-An effect whose needs depend on its own configuration overrides `getRequiredBuffers()` instead. The override replaces the static entirely, so declare one or the other. It is read before `onCreate()`, so derive the result from the constructor config, and emit `gbufferRequirementsChanged` on `ctx` when an `update()` changes it. The view then re-derives the buffers. The emit throws when the new attachment exceeds the device's `MAX_DRAW_BUFFERS`, so restore your previous state before letting that error propagate.
+An effect whose needs depend on its own configuration overrides `getRequiredBuffers()` instead. The override replaces the static entirely, so declare one or the other. It is read before `onCreate()`, so derive the result from the constructor config, and emit `gbufferRequirementsChanged` on `ctx` when an `update()` changes it. The view then re-derives the buffers. When the new attachments would exceed the device's `MAX_DRAW_BUFFERS`, the view logs an error and keeps the previous buffers. `addEffect()` and `addMesh()` throw in that case instead.
 
 ```typescript
 import { type GBufferName } from "@navaramap/three";
@@ -289,7 +289,7 @@ export class MyEffectDesc extends EffectDesc<MyEffectConfig, MyEffectUpdate, MyP
 }
 ```
 
-`globeNormal` is the odd one out: it is a separate screen-space copy of the terrain normal rather than a G-buffer attachment, so it takes no attachment slot and does not count against the device's `MAX_DRAW_BUFFERS`. Undeclared, its target stays 1x1 and `ctx.getGlobeNormalTexture()` returns a texture you cannot sample meaningfully. A custom effect or mesh that reads them must declare them so the view allocates them. Note that changing the set of allocated buffers reallocates attachments and recompiles shaders, so effects should be added once and tuned via `update()` rather than added and removed repeatedly. Because a configuration change rebuilds the attachments, fetch these textures each frame (in `update()` or the pass's `render()`) instead of caching them at pass creation.
+`globeNormal` is the odd one out: it is a separate screen-space copy of the terrain normal rather than a G-buffer attachment, so it takes no attachment slot of its own. It is copied from the normal attachment, so requiring it also allocates `normal`. Undeclared, its target stays 1x1 and `ctx.getGlobeNormalTexture()` returns a texture you cannot sample meaningfully. A custom effect or mesh that reads them must declare them so the view allocates them. Note that changing the set of allocated buffers reallocates attachments and recompiles shaders, so effects should be added once and tuned via `update()` rather than added and removed repeatedly. Because a configuration change rebuilds the attachments, fetch these textures each frame (in `update()` or the pass's `render()`) instead of caching them at pass creation.
 
 Buffer encodings to be aware of when sampling:
 
