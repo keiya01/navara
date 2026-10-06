@@ -37,7 +37,7 @@ export const coneTracingMaterialParametersDefaults = {
   fadeEnd: 1.0,
   maxDistance: 500.0,
   iteration: 14,
-  resolveKernelSize: 6,
+  resolveKernelSize: 3,
 } satisfies ConeTracingMaterialParameters;
 
 export class ConeTracingMaterial extends ShaderMaterial {

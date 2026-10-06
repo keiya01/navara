@@ -180,13 +180,14 @@ void main() {
 
     float gloss = 1.0 - specularAll.a;
     float specularPower = roughnessToSpecularPower(specularAll.a);
-    // The 0.5 is not in the derivation — specularPowerToConeAngle already
+    // The 0.25 is not in the derivation — specularPowerToConeAngle already
     // returns a half-angle, of the cone holding ~76% of the lobe's energy.
-    // Dropping it visibly over-blurs reflections, because the roughness the
+    // Without it reflections visibly over-blur, because the roughness the
     // G-buffer carries for water (0.4, sized for the wave slopes the sun glint
     // needs) is far above what a mirror-like reflection wants (0.02–0.05), and
-    // this factor compensates for it.
-    float coneTheta = specularPowerToConeAngle(specularPower) * 0.5;
+    // the mips the cone reads average across depth, so a wide cone melts
+    // neighbouring surfaces into each other.
+    float coneTheta = specularPowerToConeAngle(specularPower) * 0.25;
 
     // P1 = current pixel, P2 = resolved hit. The cone is laid out in pixels:
     // UV units are anisotropic, so a disc radius measured in them over- or
