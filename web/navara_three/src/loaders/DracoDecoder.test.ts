@@ -39,6 +39,25 @@ describe("DracoDecoder", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("forwards callback failures to onError", async () => {
+    vi.mocked(decodeDracoAsync).mockResolvedValue(new BufferGeometry());
+    const error = new Error("callback failed");
+    const onError = vi.fn();
+
+    await new DracoDecoder().decodeDracoFile(
+      new ArrayBuffer(4),
+      () => {
+        throw error;
+      },
+      attributeIDs,
+      attributeTypes,
+      undefined,
+      onError,
+    );
+
+    expect(onError).toHaveBeenCalledWith(error);
+  });
+
   it("forwards worker failures to onError", async () => {
     const error = new Error("decode failed");
     vi.mocked(decodeDracoAsync).mockRejectedValue(error);

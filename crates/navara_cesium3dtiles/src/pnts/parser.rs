@@ -68,6 +68,16 @@ pub(crate) fn get_geometry_info_from_pnts(
     let feature_table_json: serde_json::Value =
         parse_json_to_struct(&pnts.feature_table.json).ok()?;
 
+    let positions_center = match feature_table_json["RTC_CENTER"].as_array() {
+        Some(center) => {
+            let [x, y, z] = center.as_slice() else {
+                return None;
+            };
+            Vec3::new(x.as_f64()?, y.as_f64()?, z.as_f64()?)
+        }
+        None => Vec3::ZERO,
+    };
+
     let position_bin_data: Vec<u8>;
     let mut draco_attributes = None;
     if let Some(draco_meta) =
@@ -108,16 +118,6 @@ pub(crate) fn get_geometry_info_from_pnts(
 
     // NOTE: buffer is removed here to prevent duplicating data.
     buf.remove(&handle);
-
-    let positions_center = match feature_table_json["RTC_CENTER"].as_array() {
-        Some(center) => {
-            let [x, y, z] = center.as_slice() else {
-                return None;
-            };
-            Vec3::new(x.as_f64()?, y.as_f64()?, z.as_f64()?)
-        }
-        None => Vec3::ZERO,
-    };
 
     Some((draco_attributes, positions_center, position_bin_handle))
 }
@@ -230,6 +230,9 @@ mod tests {
                 get_geometry_info_from_pnts(&mut buf, handle).is_none(),
                 "{feature_table_json}"
             );
+            // A rejected tile leaves the store as it was.
+            assert_eq!(buf.len(), 1, "{feature_table_json}");
+            assert!(buf.contains(&handle), "{feature_table_json}");
         }
     }
 

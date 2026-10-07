@@ -22,10 +22,9 @@ export class DracoDecoder {
     _vertexColorSpace?: string,
     onError?: (error: unknown) => void,
   ): Promise<void> {
-    return decodeDracoAsync(buffer, { attributeIDs, attributeTypes }).then(
-      callback,
-      onError,
-    );
+    return decodeDracoAsync(buffer, { attributeIDs, attributeTypes })
+      .then(callback)
+      .catch(onError);
   }
 }
 
