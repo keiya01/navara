@@ -63,12 +63,12 @@ pub(crate) fn get_geometry_info_from_pnts(
     handle: Handle,
 ) -> Option<(Option<Vec<DracoAttributeId>>, Vec3, Handle)> {
     let pnts_bin = buf.get_u8(&handle)?;
-    let mut pnts = Pnts::from_data(pnts_bin).ok()?;
+    let pnts = Pnts::from_data(pnts_bin).ok()?;
 
     let feature_table_json: serde_json::Value =
         parse_json_to_struct(&pnts.feature_table.json).ok()?;
 
-    let mut position_bin_data: Vec<u8>;
+    let position_bin_data: Vec<u8>;
     let mut draco_attributes = None;
     if let Some(draco_meta) =
         feature_table_json["extensions"]["3DTILES_draco_point_compression"].as_object()
@@ -86,23 +86,22 @@ pub(crate) fn get_geometry_info_from_pnts(
         }
         draco_attributes = Some(attributes);
 
-        // extract the draco compressed data from featuretable's binary blob
-        position_bin_data = pnts.feature_table.binary.split_off(byte_offset as usize);
-        position_bin_data.truncate(byte_length as usize);
+        position_bin_data =
+            copy_feature_table_range(&pnts.feature_table.binary, byte_offset, byte_length)?;
     } else {
-        // No Draco compression
-        const N_POSITION_COMPONENTS: usize = 3;
-        const N_POSITION_COMPONENTS_BYTE_SIZE: usize = 4;
+        // `POSITION` is a float32 vec3 per point.
+        const POSITION_BYTE_SIZE: u64 = 3 * 4;
 
-        let positions_len = feature_table_json["POINTS_LENGTH"].as_u64()? as usize;
-        let positions_offset = feature_table_json["POSITION"]["byteOffset"].as_u64()? as usize;
-        let positions_byte_size =
-            positions_len * N_POSITION_COMPONENTS * N_POSITION_COMPONENTS_BYTE_SIZE;
+        let positions_len = feature_table_json["POINTS_LENGTH"].as_u64()?;
+        let positions_offset = feature_table_json["POSITION"]["byteOffset"].as_u64()?;
+        let positions_byte_size = positions_len.checked_mul(POSITION_BYTE_SIZE)?;
 
         // TODO: support color, normal, etc for non-draco compressed data.
-        // extract the position data from featuretable's binary blob
-        position_bin_data = pnts.feature_table.binary.split_off(positions_offset);
-        position_bin_data.truncate(positions_byte_size);
+        position_bin_data = copy_feature_table_range(
+            &pnts.feature_table.binary,
+            positions_offset,
+            positions_byte_size,
+        )?;
     }
 
     let position_bin_handle = buf.new_u8(position_bin_data);
@@ -110,20 +109,25 @@ pub(crate) fn get_geometry_info_from_pnts(
     // NOTE: buffer is removed here to prevent duplicating data.
     buf.remove(&handle);
 
-    let positions_center: Vec<f64> = match feature_table_json["RTC_CENTER"].as_array() {
-        Some(arr) => arr.iter().map(|e| e.as_f64().unwrap()).collect(),
-        None => vec![0.0, 0.0, 0.0],
+    let positions_center = match feature_table_json["RTC_CENTER"].as_array() {
+        Some(center) => {
+            let [x, y, z] = center.as_slice() else {
+                return None;
+            };
+            Vec3::new(x.as_f64()?, y.as_f64()?, z.as_f64()?)
+        }
+        None => Vec3::ZERO,
     };
 
-    Some((
-        draco_attributes,
-        Vec3::new(
-            positions_center[0],
-            positions_center[1],
-            positions_center[2],
-        ),
-        position_bin_handle,
-    ))
+    Some((draco_attributes, positions_center, position_bin_handle))
+}
+
+/// Copies `byte_length` bytes at `byte_offset` out of the feature table
+/// binary; `None` when the tile's range does not fit in it.
+fn copy_feature_table_range(binary: &[u8], byte_offset: u64, byte_length: u64) -> Option<Vec<u8>> {
+    let start = usize::try_from(byte_offset).ok()?;
+    let end = start.checked_add(usize::try_from(byte_length).ok()?)?;
+    Some(binary.get(start..end)?.to_vec())
 }
 
 #[cfg(test)]
@@ -194,6 +198,39 @@ mod tests {
         let handle = buf.new_u8(pnts);
 
         assert!(get_geometry_info_from_pnts(&mut buf, handle).is_none());
+    }
+
+    #[test]
+    fn it_should_reject_out_of_range_feature_table_slices() {
+        let cases = [
+            // Draco blob starts past the binary.
+            r#"{"POINTS_LENGTH":1,"POSITION":{"byteOffset":0},
+            "extensions":{"3DTILES_draco_point_compression":
+            {"byteOffset":64,"byteLength":1,"properties":{"POSITION":0}}}}"#,
+            // Draco blob ends past the binary.
+            r#"{"POINTS_LENGTH":1,"POSITION":{"byteOffset":0},
+            "extensions":{"3DTILES_draco_point_compression":
+            {"byteOffset":8,"byteLength":8,"properties":{"POSITION":0}}}}"#,
+            // Draco range overflows.
+            r#"{"POINTS_LENGTH":1,"POSITION":{"byteOffset":0},
+            "extensions":{"3DTILES_draco_point_compression":
+            {"byteOffset":8,"byteLength":18446744073709551615,"properties":{"POSITION":0}}}}"#,
+            // Raw positions need more points than the binary holds.
+            r#"{"POINTS_LENGTH":2,"POSITION":{"byteOffset":0}}"#,
+            // Raw position byte size overflows.
+            r#"{"POINTS_LENGTH":18446744073709551615,"POSITION":{"byteOffset":0}}"#,
+            // Malformed RTC_CENTER.
+            r#"{"POINTS_LENGTH":1,"POSITION":{"byteOffset":0},"RTC_CENTER":[1,2]}"#,
+        ];
+        for feature_table_json in cases {
+            let mut buf = BufferStore::new();
+            let handle = buf.new_u8(create_pnts(feature_table_json, &[0; 12]));
+
+            assert!(
+                get_geometry_info_from_pnts(&mut buf, handle).is_none(),
+                "{feature_table_json}"
+            );
+        }
     }
 
     #[test]
