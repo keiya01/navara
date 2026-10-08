@@ -93,7 +93,6 @@ addControlsHelp("Controls", [
   ["Cancel", "Esc"],
 ]);
 
-
 let points: LatLngHeight[] = [];
 let markers: MeshHandle<SphereMeshDesc>[] = [];
 let edge: MeshHandle<PolylineMeshDesc> | undefined;
