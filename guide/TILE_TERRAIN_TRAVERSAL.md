@@ -590,12 +590,17 @@ everything else keeps unexaggerated heights:
   floor (`CameraController::minimum_zoom_distance`, a distance from the
   globe center) is lowered by the same sinking: `sync_camera_surface_floor`
   sets `CameraController::surface_floor` to the displaced sea level when it
-  is below 0. Ground-clamped points, billboards, text and polylines are
-  horizon-culled against the ellipsoid shrunk by
-  `TerrainExaggeration::horizon_minimum_height` (`LOWEST_TERRAIN_HEIGHT`
-  exaggerated, when below 0), on the CPU (`is_point_visible`) and on the GPU
-  (`nvr_horizon_culled` reading the shared `nvrHorizonMinHeight` uniform) alike,
-  so neither hides what the other keeps. `terrain_height_for_tile` (raster/vector
+  is below 0. Reducing the exaggeration raises the floor without moving the
+  camera, so translate and follow-zoom keep accepting moves away from the
+  globe center below it (`CameraController::sinks_below_floor`), as zoom does.
+  Ground-clamped points, billboards, text and polylines are horizon-culled
+  against the ellipsoid shrunk by `TerrainExaggeration::horizon_minimum_height`
+  (`LOWEST_TERRAIN_HEIGHT` exaggerated, when below 0). The GPU
+  (`nvr_horizon_culled` reading the shared `nvrHorizonMinHeight` uniform) tests
+  the drawn position; the CPU pre-check for clamped points (`is_point_visible`),
+  which runs before their terrain height is known, tests the highest possible
+  ground (`MAX_TERRAIN_HEIGHT` exaggerated), so it never drops a point the GPU
+  would keep. `terrain_height_for_tile` (raster/vector
   SSE, falling back to the exaggerated height 0 where no terrain is rendered),
   `compute_terrain_height_at_point` (`sampleTerrainHeight`, height observers),
   `compute_terrain_height_by_tile_handle` (clamped points, text, billboards),

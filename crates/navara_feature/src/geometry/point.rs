@@ -300,14 +300,14 @@ pub fn is_point_visible(
 ) -> bool {
     // For clamp-to-ground, terrain height is unknown. Model the possible height range
     // as a sphere centered at the midpoint, with radius covering the full range.
-    let (test_height, height_radius) = {
-        let min = exaggeration.apply(LOWEST_TERRAIN_HEIGHT);
-        let max = exaggeration.apply(MAX_TERRAIN_HEIGHT);
-        let midpoint = (min + max) / 2.0;
-        let half_range = (max - min) / 2.0;
-        (material_height + midpoint as f32, half_range)
-    };
-    let world_pos = crs.to_vec3(WGS84_64, coords, test_height);
+    let min = exaggeration.apply(LOWEST_TERRAIN_HEIGHT);
+    let max = exaggeration.apply(MAX_TERRAIN_HEIGHT);
+    let height_radius = (max - min) / 2.0;
+    let world_pos = crs.to_vec3(
+        WGS84_64,
+        coords,
+        material_height + ((min + max) / 2.0) as f32,
+    );
 
     let sprite_radius = compute_sprite_radius(
         size,
@@ -324,11 +324,11 @@ pub fn is_point_visible(
         return false;
     }
 
-    // Horizon occlusion check at the lowest possible ground, against a horizon
-    // lowered to it so that terrain sunk below the ellipsoid is not hidden by it.
-    let ground_height = exaggeration.horizon_minimum_height();
-    let ground_pos = crs.to_vec3(WGS84_64, coords, material_height + ground_height as f32);
-    occluder.is_point_visible_possibly_under_ellipsoid(ground_pos, ground_height)
+    // Horizon occlusion check at the highest possible ground, against a horizon
+    // lowered to the lowest, so that no possible terrain height is hidden.
+    let top_pos = crs.to_vec3(WGS84_64, coords, material_height + max as f32);
+    occluder
+        .is_point_visible_possibly_under_ellipsoid(top_pos, exaggeration.horizon_minimum_height())
 }
 
 #[cfg(test)]
@@ -728,6 +728,42 @@ mod tests {
             !visible,
             "point on opposite side of globe should not be visible"
         );
+    }
+
+    /// Terrain the exaggeration lifts above sea level is seen beyond the
+    /// sea-level horizon.
+    #[test]
+    fn is_point_visible_beyond_the_sea_level_horizon_on_raised_terrain() {
+        use navara_core::WGS84_A_64;
+        use navara_math::Transform;
+
+        // 1 km above (0°N, 0°E): the sea-level horizon is ~113 km away.
+        let camera_ecef = Vec3::new(WGS84_A_64 + 1000., 0., 0.);
+        // A point at sea level ~170 km east, beyond that horizon.
+        let lng = 1.53;
+        let target = CRS::Geographic.to_vec3(WGS84_64, Vec3::new(lng, 0., 0.), 0.);
+        let transform = Transform::from_translation(camera_ecef).looking_at(target, Vec3::Z);
+        let frustum = CameraFrustum::new(&transform, 0.1, 1e9, 60f64.to_radians(), 1.0);
+        let occluder = EllipsoidalOccluder::new(&camera_ecef, WGS84_64);
+        let visible = |exaggeration: &TerrainExaggeration| {
+            is_point_visible(
+                Vec3::new(lng, 0., 0.),
+                &CRS::Geographic,
+                0.0,
+                1.0,
+                true,
+                &frustum,
+                &occluder,
+                camera_ecef,
+                800.0,
+                exaggeration,
+            )
+        };
+
+        // Scale 0 lifts every surface to 1000 m, whose horizon reaches ~226 km.
+        assert!(visible(&TerrainExaggeration::new(0., 1000.)));
+        // Flattened onto the ellipsoid, the point is hidden.
+        assert!(!visible(&TerrainExaggeration::new(0., 0.)));
     }
 
     #[test]

@@ -213,6 +213,15 @@ impl CameraController {
     pub fn minimum_camera_radius(&self) -> FloatType {
         self.minimum_zoom_distance + self.surface_floor
     }
+
+    /// Whether a move from `from` to `to` (positions from the globe center)
+    /// ends below [`Self::minimum_camera_radius`] without moving away from the
+    /// center. The floor rises when the exaggeration is reduced, and a camera
+    /// left below it must still be able to move out.
+    pub fn sinks_below_floor(&self, from: Vec3, to: Vec3) -> bool {
+        let radius = to.length();
+        radius <= self.minimum_camera_radius() && radius < from.length()
+    }
 }
 
 impl Default for CameraController {

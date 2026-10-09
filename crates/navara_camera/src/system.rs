@@ -1188,7 +1188,7 @@ fn apply_camera_translate(
     if length >= controller.maximum_zoom_distance {
         return;
     }
-    if length <= controller.minimum_camera_radius() {
+    if controller.sinks_below_floor(transform.translation, next) {
         return;
     }
     transform.translation = next;
@@ -1281,6 +1281,24 @@ mod test {
 
         controller.surface_floor = -8000.;
         assert_eq!(zoom_in(&controller), start - 1000.);
+    }
+
+    /// A camera left below a raised floor can translate outward but not
+    /// further in.
+    #[test]
+    fn translate_moves_out_from_below_the_floor() {
+        let start = navara_core::WGS84_B_64 - 1000.;
+        let controller = CameraController::default();
+        let translate = |by: f64| {
+            let mut transform = Transform::from_translation(Vec3::new(start, 0., 0.));
+            let mut inertia = CameraInertia::default();
+            inertia.translate(Vec3::new(by, 0., 0.));
+            apply_camera_translate(&mut transform, &mut inertia, &controller);
+            transform.translation.x
+        };
+
+        assert_eq!(translate(-100.), start);
+        assert_eq!(translate(100.), start + 100.);
     }
 
     /// A flight's first sample is the reconstruction of the extracted current
