@@ -2059,6 +2059,7 @@ export default class ThreeView<
         size.x / pixelRatio,
         size.y / pixelRatio,
         updatedAt,
+        this._uniforms.horizonMinHeight.value,
       );
       if (result === "throttled") {
         this._scheduleDeclutterFrame(
