@@ -187,8 +187,14 @@ pub struct CameraController {
     pub enable_look: bool,
     pub enable_translate: bool,
     pub auto_adjust_near_far: bool,
+    /// Distance from the globe center below which zoom and translate stop,
+    /// lowered by [`Self::surface_floor`].
     pub minimum_zoom_distance: FloatType,
     pub maximum_zoom_distance: FloatType,
+    /// Height (meters above the ellipsoid, never positive) the rendered
+    /// sea level is moved to by the terrain exaggeration, so the camera can
+    /// follow terrain sunk below the ellipsoid. Kept in sync by the tile plugin.
+    pub surface_floor: FloatType,
     pub spin_speed: FloatType,
     pub zoom_speed: FloatType,
     pub spin_duration: f32,
@@ -200,6 +206,13 @@ pub struct CameraController {
     pub follow_target_pre: Option<Vec3>,
     pub follow_offset: Option<Vec3>,
     pub terrain_hit_distance: Option<f64>,
+}
+
+impl CameraController {
+    /// Distance from the globe center the camera may not go below.
+    pub fn minimum_camera_radius(&self) -> FloatType {
+        self.minimum_zoom_distance + self.surface_floor
+    }
 }
 
 impl Default for CameraController {
@@ -214,6 +227,7 @@ impl Default for CameraController {
             auto_adjust_near_far: true,
             minimum_zoom_distance: WGS84_B_64,
             maximum_zoom_distance: WGS84_B_64 * 10.0,
+            surface_floor: 0.,
             spin_speed: 2.0,
             zoom_speed: 0.6,
             spin_duration: 500.,
