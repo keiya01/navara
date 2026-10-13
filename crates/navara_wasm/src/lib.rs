@@ -958,9 +958,44 @@ impl Core {
         self.app.get_camera_fov()
     }
 
+    /// Get the current zoom level of the camera.
+    ///
+    /// # Arguments
+    /// * `tile_size_px` - Optional tile size for zoom calculation. Defaults to 256.
+    ///                    Use 512 for MapLibre-compatible zoom values.
     #[wasm_bindgen(js_name = getZoomLevel)]
-    pub fn get_zoom_level(&mut self) -> Option<FloatType> {
-        self.app.get_zoom_level()
+    pub fn get_zoom_level(&mut self, tile_size_px: Option<FloatType>) -> Option<FloatType> {
+        self.app.get_zoom_level(tile_size_px)
+    }
+
+    /// Compute camera viewing distance required to achieve a target zoom level.
+    ///
+    /// This is the inverse of `getZoomLevel`. Given a Web Mercator zoom level
+    /// and latitude, returns the camera-to-target viewing distance in meters
+    /// that would produce that zoom level.
+    ///
+    /// Uses the current viewport height and camera FOV from the engine state.
+    ///
+    /// # Arguments
+    /// * `zoom_level` - Target Web Mercator zoom level
+    /// * `lat_deg` - Latitude in degrees (affects scale due to Web Mercator projection)
+    /// * `tile_size_px` - Tile size for zoom calculation (defaults to 256)
+    /// * `fov_rad` - Optional FOV override in radians
+    ///
+    /// # Returns
+    /// Camera viewing distance to target in meters, or `undefined` if inputs are invalid
+    #[wasm_bindgen(js_name = zoomLevelToCameraDistance)]
+    pub fn zoom_level_to_camera_distance(
+        &mut self,
+        zoom_level: FloatType,
+        lat_deg: FloatType,
+        tile_size_px: Option<FloatType>,
+        fov_rad: Option<FloatType>,
+    ) -> Option<FloatType> {
+        // Default to 256 for backward compatibility
+        let tile_size = tile_size_px.unwrap_or(256.0);
+        self.app
+            .zoom_level_to_camera_distance(zoom_level, lat_deg, tile_size, fov_rad)
     }
 
     #[wasm_bindgen(js_name = rotateAroundAxis)]
@@ -973,6 +1008,17 @@ impl Core {
         self.app.sample_terrain_height((&lle).into())
     }
 
+    /// `[min, max]` height of the ground rendered over `extent` (radians).
+    #[wasm_bindgen(js_name = sampleTerrainHeightRange)]
+    pub fn sample_terrain_height_range(
+        &mut self,
+        extent: navara_wasm_types::ExtentRadianF32,
+    ) -> Option<Vec<FloatType>> {
+        self.app
+            .sample_terrain_height_range(extent.into())
+            .map(|(min, max)| vec![min, max])
+    }
+
     #[wasm_bindgen(js_name = registerSampleTerrainHeightEvent)]
     pub fn register_sample_terrain_height_event(&mut self, lle: LLE) -> u64 {
         self.app.add_terrain_height_observer((&lle).into())
@@ -981,6 +1027,19 @@ impl Core {
     #[wasm_bindgen(js_name = unregisterSampleTerrainHeightEvent)]
     pub fn unregister_sample_terrain_height_event(&mut self, bits: u64) {
         self.app.remove_terrain_height_observer(bits);
+    }
+
+    #[wasm_bindgen(js_name = registerTerrainHeightRangeEvent)]
+    pub fn register_terrain_height_range_event(
+        &mut self,
+        extent: navara_wasm_types::ExtentRadianF32,
+    ) -> u64 {
+        self.app.add_terrain_height_range_observer(extent.into())
+    }
+
+    #[wasm_bindgen(js_name = unregisterTerrainHeightRangeEvent)]
+    pub fn unregister_terrain_height_range_event(&mut self, bits: u64) {
+        self.app.remove_terrain_height_range_observer(bits);
     }
 
     #[wasm_bindgen(js_name = setFrustum)]
