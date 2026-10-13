@@ -593,6 +593,12 @@ everything else keeps unexaggerated heights:
   is below 0. Reducing the exaggeration raises the floor without moving the
   camera, so translate and follow-zoom keep accepting moves away from the
   globe center below it (`CameraController::sinks_below_floor`), as zoom does.
+  The atmosphere's ground (`Atmosphere.ellipsoid`, shared by every takram
+  consumer: aerial perspective, sky, stars, sun light, sky light probe,
+  clouds) is WGS84 with its radii moved to the exaggerated sea level, so
+  sunk terrain stays above it; `Atmosphere._update` changes the radii in
+  place, and aerial perspective and clouds reassign it every frame because
+  their setters copy it.
   Ground-clamped points, billboards, text and polylines are horizon-culled
   against the ellipsoid shrunk by `TerrainExaggeration::horizon_minimum_height`
   (`LOWEST_TERRAIN_HEIGHT` exaggerated, when below 0). The GPU

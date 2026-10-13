@@ -26,6 +26,8 @@ export const run = async (view: ThreeView<CustomDescriptions>) => {
   defaultPlugin.addDefaultPhotorealScene();
   view.toneMappingExposure = 10;
 
+  view.addEffect({ clouds: {} });
+
   const terrain = view.addSource({
     type: "raster-dem",
     url: TERRAIN_DATASETS.mapterhorn.url,

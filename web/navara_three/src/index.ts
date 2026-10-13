@@ -2046,7 +2046,7 @@ export default class ThreeView<
 
     this._uniforms.time.value = updatedAt;
 
-    this._atmosphere._update();
+    this._atmosphere._update(this._uniforms.terrainExaggeration.value);
 
     // Screen-space label decluttering runs before the render passes so
     // placement changes land in this frame. Throttled passes and active
