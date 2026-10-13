@@ -601,12 +601,18 @@ everything else keeps unexaggerated heights:
   their setters copy it.
   Ground-clamped points, billboards, text and polylines are horizon-culled
   against the ellipsoid shrunk by `TerrainExaggeration::horizon_minimum_height`
-  (`LOWEST_TERRAIN_HEIGHT` exaggerated, when below 0). The GPU
-  (`nvr_horizon_culled` reading the shared `nvrHorizonMinHeight` uniform) tests
-  the drawn position; the CPU pre-check for clamped points (`is_point_visible`),
+  (the exaggerated sea level, when below 0), so features seen across sunk
+  ground are kept. The GPU (`nvr_horizon_culled` reading the shared
+  `nvrHorizonMinHeight` uniform) tests the drawn position, and scales that
+  ellipsoid down further to pass through the point or the camera when either
+  lies below it, so features on ground deeper than the sea level (bathymetry,
+  or land a relative height sinks) are not hidden by the ellipsoid they are
+  under, and a camera below it culls at its own tangent plane, as the CPU
+  occluder does. The CPU pre-check for clamped points (`is_point_visible`),
   which runs before their terrain height is known, tests the highest possible
-  ground (`MAX_TERRAIN_HEIGHT` exaggerated), so it never drops a point the GPU
-  would keep. `terrain_height_for_tile` (raster/vector
+  ground (`MAX_TERRAIN_HEIGHT` exaggerated) against the ellipsoid shrunk to the
+  lowest (`LOWEST_TERRAIN_HEIGHT` exaggerated), so it never drops a point the
+  GPU would keep. `terrain_height_for_tile` (raster/vector
   SSE, falling back to the exaggerated height 0 where no terrain is rendered),
   `compute_terrain_height_at_point` (`sampleTerrainHeight`, height observers),
   `compute_terrain_height_by_tile_handle` (clamped points, text, billboards),

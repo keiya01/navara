@@ -1,9 +1,11 @@
 // reference: https://cesium.com/blog/2013/04/25/horizon-culling/
 #include "ellipsoid.glsl"
 /**
- * Determines if a point on the ellipsoid is hidden below the horizon from the camera.
- * The ellipsoid is shrunk by `nvrHorizonMinHeight` (never positive) so that
- * terrain sunk below it is not hidden by it.
+ * Determines if a point is hidden below the horizon from the camera.
+ * The occluder is the ellipsoid shrunk by `nvrHorizonMinHeight` (never
+ * positive), scaled down further to pass through the point or the camera when
+ * either lies below it: a point is never hidden by the ellipsoid it is under,
+ * and a camera under the ellipsoid culls at its own tangent plane.
  * Note: Does not account for the cone test.
  *
  * @name nvr_horizon_culled
@@ -21,9 +23,10 @@ bool nvr_horizon_culled(vec3 targetPosition, vec3 cameraPosition) {
     vec3 cameraPositionScaled = cameraPosition * oneOverRadii;
     vec3 targetPositionScaled = targetPosition * oneOverRadii;
 
-    vec3 vt = cameraPositionScaled - targetPositionScaled;
-    vec3 vc = cameraPositionScaled;
-    float a = dot(vc, vc) - 1.0;
+    float occluderScaleSquared = min(
+        1.0,
+        min(dot(targetPositionScaled, targetPositionScaled),
+            dot(cameraPositionScaled, cameraPositionScaled)));
 
-    return dot(vt, vc) > a;
+    return dot(targetPositionScaled, cameraPositionScaled) < occluderScaleSquared;
 }

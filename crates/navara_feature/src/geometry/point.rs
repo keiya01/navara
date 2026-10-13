@@ -6,7 +6,7 @@ use navara_feature_component::render::TransferablePointGeometry;
 use navara_math::{FloatType, Vec3};
 use navara_occluder::ellipsoidal_occluder::EllipsoidalOccluder;
 use navara_tile_component::{
-    LOWEST_TERRAIN_HEIGHT, TerrainExaggeration, TerrainTileQuadtree, TileExtent, TileMeshMarker,
+    TerrainExaggeration, TerrainTileQuadtree, TileExtent, TileMeshMarker,
     TileTerrainDataRequesterQuery, collect_terrain_leaves, compute_terrain_height_by_tile_handle,
     find_terrain_tile_for_extent,
 };
@@ -247,9 +247,12 @@ pub fn resolve_absolute_heights_and_build_positions(
     }
 }
 
-/// Highest unexaggerated terrain height (meters) for visibility testing of
-/// clamp-to-ground features whose actual terrain height is not yet known: above
-/// Everest (8849 m). The lowest is [`LOWEST_TERRAIN_HEIGHT`].
+/// Lowest and highest unexaggerated terrain heights (meters) for visibility
+/// testing of clamp-to-ground features whose actual terrain height is not yet
+/// known: below the Challenger Deep (-10935 m), above Everest (8849 m).
+// TODO: Use the min/max height of the loaded terrain tiles instead, so the
+// pre-check culls more points before the terrain height lookup.
+const LOWEST_TERRAIN_HEIGHT: FloatType = -11000.0;
 const MAX_TERRAIN_HEIGHT: FloatType = 8850.0;
 
 /// Rust-side equivalent of `nvr_pxToWorld` in `shaders/glsl/chunks/pixelToWorld.glsl`.
@@ -327,8 +330,7 @@ pub fn is_point_visible(
     // Horizon occlusion check at the highest possible ground, against a horizon
     // lowered to the lowest, so that no possible terrain height is hidden.
     let top_pos = crs.to_vec3(WGS84_64, coords, material_height + max as f32);
-    occluder
-        .is_point_visible_possibly_under_ellipsoid(top_pos, exaggeration.horizon_minimum_height())
+    occluder.is_point_visible_possibly_under_ellipsoid(top_pos, min.min(0.))
 }
 
 #[cfg(test)]

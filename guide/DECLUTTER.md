@@ -220,7 +220,8 @@ cheap ellipsoid test for whether the anchor is geometrically hidden behind the
 Earth from the camera's viewpoint. Like the shader, it shrinks the ellipsoid by
 the `nvrHorizonMinHeight` uniform value (never positive, set from the terrain
 exaggeration), which `ThreeView` passes to `DeclutterManager.update` and on to
-`declutterPlace` every frame. This matters because **a label the GPU will
+`declutterPlace` every frame, and scales it down further to pass through the
+anchor or the camera when either lies below it. This matters because **a label the GPU will
 cull must not claim screen space** — otherwise a label on the far side of the
 planet could sit at the same projected pixel as a real, visible label and evict
 it.

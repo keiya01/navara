@@ -2,10 +2,6 @@ use bevy_ecs::prelude::*;
 use navara_layer::TerrainLayer;
 use navara_math::FloatType;
 
-/// Lowest unexaggerated terrain height (meters) assumed where the actual
-/// height is not known: below the Dead Sea (-430 m).
-pub const LOWEST_TERRAIN_HEIGHT: FloatType = -500.;
-
 /// Vertical exaggeration of the rendered terrain surface.
 ///
 /// Terrain meshes, the per-vertex height buffers and the heights stored on
@@ -68,11 +64,13 @@ impl TerrainExaggeration {
         (height - self.relative_height) * self.scale + self.relative_height
     }
 
-    /// Height (never positive) the ellipsoid is shrunk by for horizon culling,
-    /// so that rendered terrain down to [`LOWEST_TERRAIN_HEIGHT`] is not hidden
-    /// behind the ellipsoid.
+    /// Height (never positive) the ellipsoid is shrunk by for horizon culling:
+    /// the rendered sea level when it sinks below the ellipsoid, so that
+    /// features seen across the sunk ground are not hidden behind the
+    /// ellipsoid. Features below this height are tested against the ellipsoid
+    /// through themselves (`nvr_horizon_culled`).
     pub fn horizon_minimum_height(&self) -> FloatType {
-        self.apply(LOWEST_TERRAIN_HEIGHT).min(0.)
+        self.apply(0.).min(0.)
     }
 }
 
@@ -113,17 +111,14 @@ mod tests {
     }
 
     #[test]
-    fn horizon_minimum_height_follows_the_lowest_terrain() {
-        assert_eq!(
-            TerrainExaggeration::default().horizon_minimum_height(),
-            LOWEST_TERRAIN_HEIGHT
-        );
-        // Scale 5 around 2000 m moves -500 m to -10500 m.
+    fn horizon_minimum_height_follows_the_rendered_sea_level() {
+        assert_eq!(TerrainExaggeration::default().horizon_minimum_height(), 0.);
+        // Scale 5 around 2000 m moves the sea level to -8000 m.
         assert_eq!(
             TerrainExaggeration::new(5., 2000.).horizon_minimum_height(),
-            -10500.
+            -8000.
         );
-        // Lifted above the ellipsoid, the terrain needs no shrinking.
+        // Lifted above the ellipsoid, the sea level needs no shrinking.
         assert_eq!(
             TerrainExaggeration::new(0., 100.).horizon_minimum_height(),
             0.

@@ -456,7 +456,7 @@ mod tests {
             Some(TerrainExaggerationUpdated {
                 scale: 3.,
                 relative_height: 500.,
-                horizon_minimum_height: -2500.,
+                horizon_minimum_height: -1000.,
             })
         );
 
@@ -487,7 +487,7 @@ mod tests {
             Some(TerrainExaggerationUpdated {
                 scale: 1.,
                 relative_height: 0.,
-                horizon_minimum_height: -500.,
+                horizon_minimum_height: 0.,
             })
         );
     }
@@ -508,7 +508,7 @@ mod tests {
             Some(TerrainExaggerationUpdated {
                 scale: 1.,
                 relative_height: 0.,
-                horizon_minimum_height: -500.,
+                horizon_minimum_height: 0.,
             })
         );
 
