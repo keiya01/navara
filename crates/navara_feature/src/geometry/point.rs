@@ -177,7 +177,7 @@ pub fn coords_overlap_changed_extents(
 /// For each point: checks visibility, converts to lng_lat, finds containing terrain leaf,
 /// computes height, and pushes the position. Culled points use the previous terrain height.
 ///
-/// `material_height` is used only for visibility culling (`is_point_visible`); it is not
+/// `material_height` is used only for the frustum check of `is_point_visible`; it is not
 /// baked into the position. The material height offset is applied in the vertex shader, so
 /// baking it here as well would double the offset.
 #[allow(clippy::too_many_arguments)]
@@ -328,8 +328,9 @@ pub fn is_point_visible(
     }
 
     // Horizon occlusion check at the highest possible ground, against a horizon
-    // lowered to the lowest, so that no possible terrain height is hidden.
-    let top_pos = crs.to_vec3(WGS84_64, coords, material_height + max as f32);
+    // lowered to the lowest, so that no possible terrain height is hidden. Like
+    // `nvr_horizon_culled`, it tests the anchor without the height offset.
+    let top_pos = crs.to_vec3(WGS84_64, coords, max as f32);
     occluder.is_point_visible_possibly_under_ellipsoid(top_pos, min.min(0.))
 }
 
@@ -766,6 +767,36 @@ mod tests {
         assert!(visible(&TerrainExaggeration::new(0., 1000.)));
         // Flattened onto the ellipsoid, the point is hidden.
         assert!(!visible(&TerrainExaggeration::new(0., 0.)));
+    }
+
+    /// The shader horizon-culls the anchor before the height offset, so a
+    /// negative offset does not hide a point whose anchor is visible.
+    #[test]
+    fn is_point_visible_ignores_the_height_offset_for_the_horizon() {
+        use navara_core::WGS84_A_64;
+        use navara_math::Transform;
+
+        // 1 km above (0°N, 0°E), looking at terrain lifted to 1000 m ~170 km
+        // east, within the ~226 km horizon of that height.
+        let camera_ecef = Vec3::new(WGS84_A_64 + 1000., 0., 0.);
+        let lng = 1.53;
+        let target = CRS::Geographic.to_vec3(WGS84_64, Vec3::new(lng, 0., 0.), 0.);
+        let transform = Transform::from_translation(camera_ecef).looking_at(target, Vec3::Z);
+        let frustum = CameraFrustum::new(&transform, 0.1, 1e9, 60f64.to_radians(), 1.0);
+        let occluder = EllipsoidalOccluder::new(&camera_ecef, WGS84_64);
+
+        assert!(is_point_visible(
+            Vec3::new(lng, 0., 0.),
+            &CRS::Geographic,
+            -5000.0,
+            1.0,
+            true,
+            &frustum,
+            &occluder,
+            camera_ecef,
+            800.0,
+            &TerrainExaggeration::new(0., 1000.),
+        ));
     }
 
     #[test]

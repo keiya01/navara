@@ -609,8 +609,9 @@ everything else keeps unexaggerated heights:
   or land a relative height sinks) are not hidden by the ellipsoid they are
   under, and a camera below it culls at its own tangent plane, as the CPU
   occluder does. The CPU pre-check for clamped points (`is_point_visible`),
-  which runs before their terrain height is known, tests the highest possible
-  ground (`MAX_TERRAIN_HEIGHT` exaggerated) against the ellipsoid shrunk to the
+  which runs before their terrain height is known, tests the anchor (without
+  the height offset, like the GPU) at the highest possible ground
+  (`MAX_TERRAIN_HEIGHT` exaggerated) against the ellipsoid shrunk to the
   lowest (`LOWEST_TERRAIN_HEIGHT` exaggerated), so it never drops a point the
   GPU would keep. `terrain_height_for_tile` (raster/vector
   SSE, falling back to the exaggerated height 0 where no terrain is rendered),
