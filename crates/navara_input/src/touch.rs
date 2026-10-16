@@ -109,10 +109,9 @@ pub fn process_touch_input_events(
                 finger_count_changed = true;
             }
             TouchState::Move => {
-                let Some(point) = touch_list.touches.get_mut(&touch.id) else {
-                    unreachable!("touch {} moved before it started", touch.id);
-                };
-                point.position = touch.position;
+                if let Some(point) = touch_list.touches.get_mut(&touch.id) {
+                    point.position = touch.position;
+                }
             }
             TouchState::End => {
                 touch_list.touches.remove(&touch.id);
