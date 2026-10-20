@@ -1392,8 +1392,8 @@ mod test {
     fn flat_distances(geometry: &super::PolylineGeometry) -> Vec<f32> {
         let rnty = &geometry.attributes.right_normal_and_line_length.data;
         let mut distances = Vec::with_capacity(rnty.len() / 4);
-        for vertex in rnty.chunks_exact(4) {
-            distances.push(vertex[2]);
+        for &[_, _, distance, _] in rnty.as_chunks::<4>().0 {
+            distances.push(distance);
         }
         distances
     }
@@ -1412,8 +1412,8 @@ mod test {
 
         let line_distance_and_ends = &geometry.attributes.line_distance_and_ends.unwrap().data;
         let mut distances = vec![];
-        for vertex in line_distance_and_ends.chunks_exact(4) {
-            distances.push((vertex[0], vertex[1]));
+        for &[high, low, _, _] in line_distance_and_ends.as_chunks::<4>().0 {
+            distances.push((high, low));
         }
         assert_eq!(
             distances,
@@ -1481,7 +1481,7 @@ mod test {
 
         // Every segment quad runs forward: its end vertices are one segment
         // length past its start vertices, the closing one included.
-        for quad in geometry.indices.chunks_exact(6).take(4) {
+        for quad in geometry.indices.as_chunks::<6>().0.iter().take(4) {
             let start = distances[quad[0] as usize];
             let end = distances[quad[2] as usize];
             assert!(
@@ -1670,8 +1670,8 @@ mod test {
             .unwrap()
             .data;
         let mut ends = Vec::with_capacity(data.len() / 4);
-        for vertex in data.chunks_exact(4) {
-            ends.push((vertex[2], vertex[3]));
+        for &[_, _, length, mask] in data.as_chunks::<4>().0 {
+            ends.push((length, mask));
         }
         ends
     }
@@ -1681,7 +1681,9 @@ mod test {
             .attributes
             .position
             .data
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .all(|p| p[2] == 0.0)
     }
 
