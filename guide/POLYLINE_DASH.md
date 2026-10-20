@@ -42,12 +42,12 @@ flowchart LR
   again only when its pattern changes, releases the row it replaces after
   registering the new one, and all of its rows when it is disposed; a row
   nobody holds is reused for the next new pattern. Releasing a row nobody
-  holds is a frontend bug, which the atlas ignores with a warning. The
-  Rust atlas reports a pattern it cannot hold (`LineDashRejection`) and the
-  frontend draws it on row 0. The Three.js
-  wrapper (exposed through `navara_wasm_api`) copies the data into a
-  `DataTexture`; growth swaps the shared uniform's `.value`, so materials bind
-  the uniform ref, never the texture.
+  holds is a frontend bug, which the atlas ignores with a warning. The Rust
+  atlas reports a pattern it cannot hold (`LineDashRejection`) and the
+  frontend draws it on row 0. The Three.js wrapper (exposed through
+  `navara_wasm_api`) copies the data into a `DataTexture`; growth swaps the
+  shared uniform's `.value`, so materials bind the uniform ref, never the
+  texture.
 - **Row 0 is a solid line with butt ends.** It is the atlas' reserved row, the
   batch scalar's allocation default, and the value the shaders skip. An array
   that cannot make a pattern resolves to it, unless the cap is round or square:
@@ -82,8 +82,9 @@ The shaders need each fragment's distance along the line. The geometry builders
   out of a longer one starts on it (`Ring::line_start`, `TileLine::start`),
   and `project_line_on_center` puts that distance in the first position's z.
   The flat builder adds it to the clipped line's own distance and splits the
-  sum by `FLAT_LINE_DISTANCE_HIGH_STEP` into `line_distance_and_ends.xy`. A vector-tile
-  (MVT) source has no such distance: its lines start at zero in every tile.
+  sum by `FLAT_LINE_DISTANCE_HIGH_STEP` into `line_distance_and_ends.xy`. A
+  vector-tile (MVT) source has no such distance: its lines start at zero in
+  every tile.
 - **Volume**: the fragment splits the segment length by its distances to the
   start and end planes. Those are miter planes, so the vertex shader passes the
   factors (`nvr_vLineDashPlaneScale`) that turn a plane distance into a
@@ -94,24 +95,50 @@ The shaders need each fragment's distance along the line. The geometry builders
   positions) into the RTE geometry's `line_segments`, which travels with the
   vertex buffers and which batching concatenates like them. The frontend
   wraps it in a texture that drops its CPU copy once uploaded
-  (`createLineSegmentTextureReleasedOnUpload`). A fragment finds its entry from
-  `gl_VertexID / 8`, the geometry's eight vertices per segment.
+  (`createLineSegmentTextureReleasedOnUpload`). A fragment finds its entry
+  from `gl_VertexID / 8`.
 - The position in the line counts the segments before this one, so it is
   relative and survives concatenation: zero starts an open line, which is how
   the table separates the lines of a batched mesh, and a closed ring stores
   `−(n + 1)`, which tells its seam from two ends. From it a fragment finds
   its line's first segment and binary-searches the lengths so far, which
   increase along the line, for the segment holding any length.
-- Segments have a length. The flat builder drops consecutive positions that
-  coincide in 2D. The volume builder drops a position whose wall bottom lies
-  within a millimeter of the previous one's: the volume is built at fixed
-  heights, so a vertical step would make a zero-length segment, and so would
-  two coordinates of one point (longitudes ±180°, a pole).
 - **Upload on first dash.** A line that is never dashed never uploads its
   dash data. The flat mesh keeps `line_distance_and_ends` off the geometry
   until it registers a pattern other than the solid row, or any per-feature
   one; the volume's segment table is sampled only by a dashed program, and
   Three.js uploads a texture on its first sampling draw.
+
+## Line ends and caps
+
+A line's own ends take the cap; the ends a tile clipped it at do not.
+
+- **Flat: which ends are the line's own.** A drape bake draws several vector
+  tiles into one terrain tile without cutting each to its own square, so a
+  cap at a clip end would draw over the neighbor's line. Every vertex of a
+  flat line therefore carries the line's length and which of its ends are its
+  own, in `line_distance_and_ends.zw`. A tile clips its lines on or outside
+  its own square, `[-1, 1]` in the positions' units, so only an end strictly
+  inside the square is the line's own; an own end outside it is drawn by the
+  tile it lies in, and a closed ring has none.
+- **Flat: drawing the cap.** For a round or square cap, the vertex shader
+  pushes the vertices at an own end half a line width out, extending the
+  distance along the line with them, and the fragment shader cuts the cap
+  from the distance past either end. No geometry is added for a cap.
+- **Volume.** The boxes already reach half a width past each segment's
+  planes; the fragment shader keeps that part only at an open line's first
+  or last segment, which it reads from the segment table
+  (`nvr_lineDashKeepsEnds`).
+- **What a cap shows.** `nvr_lineDashDistance` takes the positions of the
+  line's own ends along the pattern (`lineEnds`), and a dash that does not
+  reach into the line is not drawn. A square cap takes the pattern at the end
+  it continues, and a dash reaching an end has no edge there, so the cap
+  carries it on at full opacity. Round dashes are cut to the line where they
+  lie: a dot is drawn whole or not at all, and a dash crossing an end ends in
+  a round cap centered on it, which is the line's own. The flat path knows
+  its own ends from the line's length and end mask; the volume path looks
+  them up in the segment table, only within a cap radius of a segment's
+  planes.
 
 ## Period in the volume path
 
@@ -189,8 +216,9 @@ takes a different phase on either side of a terrain tile edge, even along the
 line.
 
 The flat path therefore lays the pattern out along the original line
-(`line_distance_and_ends.xy`), from its start, in a unit of the line width rounded up to a
-power of two of the position's units (`nvr_vLineDashUnit`). A drape level has
+(`line_distance_and_ends.xy`), from its start, in a unit of the line width
+rounded up to a power of two of the position's units (`nvr_vLineDashUnit`).
+A drape level has
 half the texel size of the one above, so the unit halves with it: the periods
 of a finer bake keep every boundary of a coarser one, and the dashes of two
 tiles at different levels line up, one size apart, without a cut at the tile
@@ -199,35 +227,25 @@ edge. The phase uses the same integer reduction as the volume path, with
 
 ## Constraints
 
-- Dash distances are compared against an explicit pixel size, never `fwidth`:
-  the period changes per fragment, which makes the distance discontinuous in
-  screen space.
-- The volume path discards at the dash edge, like its line-width test. The flat
-  path multiplies alpha, because the drape bake is always blended.
-- The pick pass skips the dash test, so gaps pick as the line.
-- **Line ends.** Every vertex of a flat line carries the line's length and
-  which of its ends are its own in `line_distance_and_ends.zw`. A tile clips
-  its lines on or outside its own square, `[-1, 1]` in the positions' units,
-  so only an end strictly inside the square is the line's own; an own end
-  outside it is drawn by the tile it lies in, and a closed ring has none. A
-  drape bake draws several vector tiles into one terrain tile without cutting
-  each to its own square, so a cap at a clip end would draw over the
-  neighbor's line. The vertex shader pushes the vertices at an own end half
-  a line width out for a round or square cap, extending the distance along
-  the line with them; the fragment shader cuts the cap from the distance past
-  either end. No geometry is added for a cap. The volume's
-  boxes already reach half a width past each segment's planes; the fragment
-  shader keeps that part only at an open line's first or last segment
-  (`nvr_lineDashKeepsEnds`).
-- **What a cap shows.** `nvr_lineDashDistance` takes the positions of the
-  line's own ends along the pattern (`lineEnds`), and a dash that does not
-  reach into the line is not drawn. A square cap takes the pattern at the end
-  it continues, and a dash reaching an end has no edge there, so the cap
-  carries it on at full opacity. Round dashes are cut to the line where they
-  lie: a dot is drawn whole or not at all, and a dash crossing an end ends in
-  a round cap centered on it, which is the line's own. The flat path knows
-  its own ends from the line's length and end mask; the volume path looks them up in the
-  segment table, only within a cap radius of a segment's planes.
-- The dash math must use the width the line is drawn at: the width clamped to
+- **No `fwidth` at dash edges.** Dash distances are compared against an
+  explicit pixel size: the period changes per fragment, which makes the
+  distance discontinuous in screen space.
+- **The volume discards, the flat path blends.** The volume path discards at
+  the dash edge, like its line-width test. The flat path multiplies alpha,
+  because the drape bake is always blended.
+- **Gaps pick as the line.** The pick pass skips the dash test.
+- **Every segment has a length.** A zero-length segment has no direction for
+  its normals, and the shaders divide by its length. The flat builder drops
+  consecutive positions that coincide in 2D. The volume builder drops a
+  position whose wall bottom lies within `MIN_SEGMENT_LENGTH_METERS` (a
+  millimeter) of the previous one's: the volume is built at fixed heights,
+  so a vertical step would make a zero-length segment, and so would two
+  coordinates of one point (longitudes ±180°, a pole).
+- **Eight volume vertices per segment, in segment order.** A fragment reads
+  its segment table entry at `gl_VertexID / 8`, and nothing checks that the
+  entry is its own: the builder's vertex layout, and batching's
+  concatenation of the vertices and `line_segments`, must keep the two in
+  step.
+- **The dash math uses the drawn width.** That is the width clamped to
   `maxWidth`, which is what the volume is built to. The ground fragment test
   cuts the volume to the same clamped width.
