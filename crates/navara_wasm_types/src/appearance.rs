@@ -1788,13 +1788,13 @@ impl ModelMaterial {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInternalMaterial {
-    #[wasm_bindgen(getter_with_clone, js_name = pointCloud)]
+    #[wasm_bindgen(js_name = pointCloud)]
     #[serde(rename = "pointCloud")]
     pub point_cloud: bool,
     #[wasm_bindgen(getter_with_clone, js_name = dracoAttributes)]
     #[serde(rename = "dracoAttributes")]
     pub draco_attributes: Option<Vec<DracoAttributeId>>,
-    #[wasm_bindgen(getter_with_clone, js_name = pointCloudGeodeticNormal)]
+    #[wasm_bindgen(js_name = pointCloudGeodeticNormal)]
     #[serde(rename = "pointCloudGeodeticNormal")]
     pub point_cloud_geodetic_normal: WasmVec3,
 }
